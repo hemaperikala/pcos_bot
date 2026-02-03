@@ -1,11 +1,11 @@
 """
 PCOS Care AI - Automated Symptom-Based Triage System
-Risk scoring + Web-based health information (robust & safe)
+Risk scoring + Web-based health information (safe & production-ready)
 """
 
+import os
 import telebot
 from telebot import types
-from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 # BOT INITIALIZATION
 # ==========================================
 
-BOT_TOKEN = "8132256364:AAGo8jRepHLUiX0gZcyL-9rEZVewWoC_oV8"
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # REQUIRED for Render
 bot = telebot.TeleBot(BOT_TOKEN)
 
 user_data = {}
@@ -25,7 +25,12 @@ user_data = {}
 WEIGHTS = {
     'cycle_regularity': {'Regular': 0, 'Irregular': 35, 'None': 40},
     'cycle_length': {'normal': 0, 'short': 15, 'long': 25, 'none': 30},
-    'symptoms': {'Acne': 8, 'Facial Hair': 12, 'Weight Gain': 10, 'Hair Thinning': 10}
+    'symptoms': {
+        'Acne': 8,
+        'Facial Hair': 12,
+        'Weight Gain': 10,
+        'Hair Thinning': 10
+    }
 }
 
 # ==========================================
@@ -40,11 +45,11 @@ class PCOSScorer:
         try:
             days = int(length)
             if 21 <= days <= 35:
-                return 0
+                return WEIGHTS['cycle_length']['normal']
             elif days < 21:
-                return 15
+                return WEIGHTS['cycle_length']['short']
             else:
-                return 25
+                return WEIGHTS['cycle_length']['long']
         except:
             return 0
 
@@ -70,11 +75,11 @@ class PCOSScorer:
             return "High"
 
 # ==========================================
-# WEB SEARCH (FIXED + FALLBACK)
+# WEB SEARCH WITH FALLBACK
 # ==========================================
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    "User-Agent": "Mozilla/5.0"
 }
 
 def web_search_pcos(topic):
@@ -94,15 +99,14 @@ def web_search_pcos(topic):
         raise Exception("No content")
 
     except:
-        # 🔁 FALLBACK (VERY IMPORTANT)
         return (
-            "Polycystic Ovary Syndrome (PCOS) is a hormonal disorder common among women "
-            "of reproductive age. It is characterized by irregular menstrual cycles, "
-            "excess androgen levels, and polycystic ovaries.\n\n"
+            "Polycystic Ovary Syndrome (PCOS) is a hormonal disorder affecting women of "
+            "reproductive age. It is associated with irregular menstrual cycles, excess "
+            "androgen levels, and ovarian cysts.\n\n"
             "Common symptoms include acne, excess facial hair, weight gain, hair thinning, "
             "and fertility challenges.\n\n"
-            "PCOS can be managed through lifestyle changes such as a healthy diet, regular "
-            "exercise, stress management, and medical consultation.\n\n"
+            "Management includes healthy diet, regular exercise, stress control, and "
+            "medical consultation.\n\n"
             "⚠️ This is general information, not medical advice."
         )
 
@@ -117,9 +121,9 @@ def start(message):
         message.chat.id,
         "🌸 **Welcome to PCOS Care AI** 🌸\n\n"
         "/assess – PCOS risk assessment\n"
-        "/about – About PCOS (web)\n"
-        "/help – PCOS guidance (web)\n\n"
-        "Type /assess to begin.",
+        "/about – About PCOS (trusted sources)\n"
+        "/help – PCOS guidance\n\n"
+        "You can also ask PCOS-related questions anytime.",
         parse_mode="Markdown"
     )
 
@@ -162,7 +166,8 @@ def assessment_flow(message):
         user_data[uid]['stage'] = 'symptoms'
         bot.send_message(
             message.chat.id,
-            "🩺 **Question 3/3:** Enter symptoms (comma separated):\nAcne, Facial Hair, Weight Gain, Hair Thinning"
+            "🩺 **Question 3/3:** Enter symptoms (comma separated):\n"
+            "Acne, Facial Hair, Weight Gain, Hair Thinning"
         )
 
     elif stage == 'symptoms':
@@ -182,7 +187,7 @@ def generate_report(message):
 Risk Score: {score}%
 Category: {risk}
 
-⚠️ This is not a medical diagnosis.
+⚠️ This is a screening tool, not a medical diagnosis.
 """
     bot.send_message(message.chat.id, report, parse_mode="Markdown")
     user_data.pop(uid, None)
